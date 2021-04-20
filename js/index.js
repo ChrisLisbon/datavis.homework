@@ -46,7 +46,7 @@ const colorScale = d3.scaleOrdinal().range(['#DD4949', '#39CDA1', '#FD710C', '#A
 const radiusScale = d3.scaleSqrt().range([10, 30]);
 
 loadData().then(data => {
-
+    consaole.log(data)
     colorScale.domain(d3.set(data.map(d=>d.region)).values());
 
     d3.select('#range').on('change', function(){ 
@@ -81,6 +81,7 @@ loadData().then(data => {
     }
 
     function updateScattePlot(){
+        
         return;
     }
 
@@ -91,11 +92,11 @@ loadData().then(data => {
 
 async function loadData() {
     const data = { 
-        'population': await d3.csv('data/population.csv'),
-        'gdp': await d3.csv('data/gdp.csv'),
-        'child-mortality': await d3.csv('data/cmu5.csv'),
-        'life-expectancy': await d3.csv('data/life_expectancy.csv'),
-        'fertility-rate': await d3.csv('data/fertility-rate.csv')
+        'population': await d3.csv('./data/population.csv'),
+        'gdp': await d3.csv('./data/gdp.csv'),
+        'child-mortality': await d3.csv('./data/cmu5.csv'),
+        'life-expectancy': await d3.csv('./data/life_expectancy.csv'),
+        'fertility-rate': await d3.csv('./data/fertility-rate.csv')
     };
     
     return data.population.map(d=>{
