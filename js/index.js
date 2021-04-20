@@ -46,10 +46,10 @@ const colorScale = d3.scaleOrdinal().range(['#DD4949', '#39CDA1', '#FD710C', '#A
 const radiusScale = d3.scaleSqrt().range([10, 30]);
 
 loadData().then(data => {
-    consaole.log(data)
+    console.log(data)
     colorScale.domain(d3.set(data.map(d=>d.region)).values());
 
-    d3.select('#range').on('change', function(){ 
+    d3.select('#range').on('input', function(){         
         year = d3.select(this).property('value');
         yearLable.html(year);
         updateScattePlot();
@@ -76,27 +76,148 @@ loadData().then(data => {
         updateBar();
     });
 
-    function updateBar(){
+ function updateBar(){
+    regions = d3.map(data, function (d) {
+        return d['region'];
+    }).keys();
+    mean = regions.map(
+        region => (
+            d3.mean(
+                data.filter(d => d['region'] == region)
+                    .flatMap(d => d[param][year])
+            )
+        )
+    );
+    
+    mean_for_region = [];
+    regions.forEach((key, i) => {
+        let n = {"region": key, "mean": mean[i]};
+        mean_for_region.push(n);
+    });
+
+    xBar.domain(regions);
+    xBarAxis.call(d3.axisBottom(xBar));
+
+    yBar.domain([0, d3.max(mean)]).range([height, 0]);
+    yBarAxis.call(d3.axisLeft(yBar));
+
+    barChart.selectAll('rect').data(mean_for_region).enter().append('rect')
+        .attr('width', xBar.bandwidth())
+        .attr('height', d => height - yBar(d['mean']))
+        .attr('x', d => xBar(d['region']))
+        .attr('y', d => yBar(d['mean']) - margin)
+        .style("fill", d => colorScale(d['region']));
+
+    barChart.selectAll('rect').data(mean_for_region)
+        .attr('width', xBar.bandwidth())
+        .attr('height', d => height - yBar(d['mean']))
+        .attr('x', d => xBar(d['region']))
+        .attr('y', d => yBar(d['mean']) - margin)
+        .style("fill", d => colorScale(d['region']));
+
+        d3.selectAll('rect').on('click', function (actual, i) {
+        d3.selectAll('rect').style('opacity', 0.5);
+        d3.select(this).style('opacity', 1);
+
+        d3.selectAll('circle').style('opacity', 0);
+        d3.selectAll('circle').filter(d => d['region'] == actual.region).style('opacity', 0.5);
+
+        })
         return;
     }
 
     function updateScattePlot(){
+        d3.select('.year').text(year);
+
+        let xRange = data.map(d=> +d[xParam][year]);
+        x.domain([d3.min(xRange), d3.max(xRange)]);
+        xAxis.call(d3.axisBottom(x));
+
+        let yRange = data.map(d => +d[yParam][year]);
+        y.domain([d3.min(yRange), d3.max(yRange)]);
+        yAxis.call(d3.axisLeft(y));
+
+        let rRange = data.map(d => +d[rParam][year]);
+        radiusScale.domain([d3.min(rRange), d3.max(rRange)]);
+
+        scatterPlot.selectAll('circle').data(data)
+            .enter()
+                .append('circle')
+                    .attr("cx", d => x(d[xParam][year]))
+                    .attr("cy", d => y(d[yParam][year]))
+                    .attr("r", d => radiusScale(d[rParam][year]))
+                    .attr("fill", d => colorScale(d['region']));
+
+        scatterPlot.selectAll('circle').data(data)
+            .attr("cx", d => x(d[xParam][year]))
+            .attr("cy", d => y(d[yParam][year]))
+            .attr("r", d => radiusScale(d[rParam][year]))
+            .attr("fill", d => colorScale(d['region']));
+
+    }
+
+    function updateLinearPlot(){
+        if (selected) {
+            d3.select('.country-name').text(selected);
+
+            let country = data.filter(d => d['country'] == selected).map(d => d[lineParam])[0];
+
+            let dict = [];
+            for (let i = 1800; i < 2021; i++)
+                dict.push({"year": i, "value": parseFloat(country[i])})
+
+            dict.splice(221, 5);
+
+            let xRange = d3.range(1800, 2021);
+            x.domain([d3.min(xRange), d3.max(xRange)]);
+            xLineAxis.call(d3.axisBottom(x));
+
+            let yRange = d3.values(country).map(d => +d);
+            y.domain([d3.min(yRange), d3.max(yRange)]);
+            yLineAxis.call(d3.axisLeft(y));
+            
+            lineChart.append('path').attr('class', 'line').datum(dict)
+                .enter()
+                    .append('path');
+
+            lineChart.selectAll('.line').datum(dict)
+                .attr("fill", "none")
+                .attr("stroke", "steelblue")
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .x(d => x(d.year))
+                    .y(d => y(d.value))
+                );
+        }   
         
         return;
     }
 
     updateBar();
     updateScattePlot();
-});
+    updateLinearPlot();
 
+scatterPlot.selectAll('circle').on('click', function (actual, i) {
+    selected = actual['country'];
+
+    d3.selectAll('circle').attr('stroke-width', 'default');
+    
+    this.parentNode.appendChild(this);
+    d3.select(this).attr('stroke-width', 3);
+
+    updateLinearPlot();
+
+    return;
+});
+});
 
 async function loadData() {
     const data = { 
-        'population': await d3.csv('./data/population.csv'),
-        'gdp': await d3.csv('./data/gdp.csv'),
-        'child-mortality': await d3.csv('./data/cmu5.csv'),
-        'life-expectancy': await d3.csv('./data/life_expectancy.csv'),
-        'fertility-rate': await d3.csv('./data/fertility-rate.csv')
+        'population': await d3.csv('data/population.csv'),
+        'gdp': await d3.csv('data/gdp.csv'),
+        'child-mortality': await d3.csv('data/cmu5.csv'),
+        'life-expectancy': await d3.csv('data/life_expectancy.csv'),
+        'fertility-rate': await d3.csv('data/fertility-rate.csv')
     };
     
     return data.population.map(d=>{
