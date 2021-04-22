@@ -75,6 +75,11 @@ loadData().then(data => {
         param = d3.select(this).property('value');
         updateBar();
     });
+            
+    d3.select('#p').on('change', function(){ 
+        lineParam = d3.select(this).property('value');
+        updateLinearPlot();
+    });
 
  function updateBar(){
     regions = d3.map(data, function (d) {
